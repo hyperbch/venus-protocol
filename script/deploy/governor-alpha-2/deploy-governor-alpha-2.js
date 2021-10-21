@@ -6,10 +6,10 @@ const contractConfigData = require("../../../networks/testnet.json");
 
   const governorAlphaContractInstance = await saddle.getContractAt('GovernorAlpha', governorAlphaAddress);
 
-  const lastProposalId = await governorAlphaContractInstance.methods.proposalCount().call();
   const timelockAddress = contractConfigData.Contracts.Timelock;
   const xvsAddress = contractConfigData.Tokens.XVS.address;
   const guardian = contractConfigData.Accounts.Guardian;
+  const lastProposalId = await governorAlphaContractInstance.methods.proposalCount().call();
 
   const constructorArgumentArray = [timelockAddress, xvsAddress, guardian, lastProposalId];
   console.log(`Deploying GovernorAlpha2 with timelockAddress, xvsAddress, guardian in constructorArguments: ${constructorArgumentArray}`);

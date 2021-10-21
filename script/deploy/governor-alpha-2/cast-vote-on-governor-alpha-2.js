@@ -7,7 +7,7 @@ const contractConfigData = require("../../../networks/testnet.json");
 
   const governorAlpha2ContractInstance = await saddle.getContractAt('GovernorAlpha2', governorAlpha2Address);
 
-  const castVoteTxn = await governorAlpha2ContractInstance.methods.castVote(101, true).send();
+  const castVoteTxn = await governorAlpha2ContractInstance.methods.castVote(102, true).send();
 
   console.log(`casted Vote on GovernorAlpha2 with transactionStatus: ${castVoteTxn.status}`);
 })();
