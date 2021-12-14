@@ -85,9 +85,20 @@ describe('VToken', function () {
 
       //const result = await liquidate(vToken, liquidator, borrower, repayAmount, vTokenCollateral);
 
-      const result = await send(liquidatorContract, 'liquidateBorrow', [vToken._address, borrower, repayAmount, vTokenCollateral._address]);
+      const result = await send(liquidatorContract, 'liquidateBorrow', [vToken._address, borrower, bnbUnsigned(0), vTokenCollateral._address]);
 
       expect(result).toSucceed();
+
+      console.log(`result is: ${JSON.stringify(result)}`);
+
+      expect(result).toHaveLog('LiquidateBorrowedTokens', {
+        liquidator: liquidator, 
+        borrower: borrower,
+        repayAmount: bnbUnsigned(0),
+        vTokenCollateral: vTokenCollateral._address,
+        seizeTokensForTreasury: bnbUnsigned(0),
+        seizeTokensForLiquidator: bnbUnsigned(0)
+      });
 
       // const gasCost = await bnbGasCost(result);
       // const afterBalances = await getBalances([vToken, vTokenCollateral], [liquidator, borrower]);
