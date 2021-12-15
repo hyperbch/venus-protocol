@@ -62,6 +62,18 @@ async function liquidate(liquidatorContract, vToken, liquidator, borrower, repay
   );
 }
 
+async function liquidatevBnb(liquidatorContract, vToken, liquidator, borrower, repayAmount, vTokenCollateral) {
+  // make sure to have a block delta so we accrue interest
+  await fastForward(vToken, 1);
+  await fastForward(vTokenCollateral, 1);
+  return send(
+    liquidatorContract,
+    'liquidateBorrow',
+    [vToken._address, borrower, repayAmount, vTokenCollateral._address],
+    { from: liquidator, value: repayAmount }
+  );
+}
+
 function calculateSplitSeizedTokens(amount) {
   const treasuryDelta =
       amount
@@ -73,7 +85,7 @@ function calculateSplitSeizedTokens(amount) {
 
 describe('Liquidator', function () {
   let root, liquidator, borrower, treasury, accounts;
-  let vToken, vTokenCollateral, liquidatorContract;
+  let vToken, vTokenCollateral, liquidatorContract, vBnb;
 
   beforeEach(async () => {
     [root, liquidator, borrower, treasury, ...accounts] = saddle.accounts;
@@ -93,6 +105,7 @@ describe('Liquidator', function () {
   });
 
   describe('liquidateBorrow', () => {
+
     it('returns success from liquidateBorrow and transfers the correct amounts', async () => {
       const beforeBalances = await getBalances([vToken, vTokenCollateral], [treasury, liquidator, borrower]);
       const result = await liquidate(liquidatorContract, vToken, liquidator, borrower, repayAmount, vTokenCollateral);
@@ -108,6 +121,7 @@ describe('Liquidator', function () {
         seizeTokensForTreasury: treasuryDelta.toString(),
         seizeTokensForLiquidator: liquidatorDelta.toString()
       });
+
       expect(afterBalances).toEqual(await adjustBalances(beforeBalances, [
         [vToken, 'cash', repayAmount],
         [vToken, 'borrows', -repayAmount],
@@ -120,5 +134,38 @@ describe('Liquidator', function () {
         [vTokenCollateral, borrower, 'tokens', -seizeTokens]
       ]));
     });
+
   });
+
+  describe('liquidate vBNB-Borrow', () => {
+
+    it('liquidate-vBNB and returns success from liquidateBorrow and transfers the correct amounts', async () => {
+      const beforeBalances = await getBalances([vBnb, vTokenCollateral], [treasury, liquidator, borrower]);
+      const result = await liquidatevBnb(liquidatorContract, vBnb, liquidator, borrower, repayAmount, vTokenCollateral);
+      const gasCost = await bnbGasCost(result);
+      const afterBalances = await getBalances([vBnb, vTokenCollateral], [treasury, liquidator, borrower]);
+
+      const { treasuryDelta, liquidatorDelta } = calculateSplitSeizedTokens(seizeTokens);
+      expect(result).toHaveLog('LiquidateBorrowedTokens', {
+        liquidator,
+        borrower,
+        repayAmount: repayAmount.toString(),
+        vTokenCollateral: vTokenCollateral._address,
+        seizeTokensForTreasury: treasuryDelta.toString(),
+        seizeTokensForLiquidator: liquidatorDelta.toString()
+      });
+
+      expect(afterBalances).toEqual(await adjustBalances(beforeBalances, [
+        [vBnb, 'bnb', repayAmount],
+        [vBnb, 'borrows', -repayAmount],
+        [vBnb, liquidator, 'bnb', -(gasCost.add(repayAmount))],
+        [vTokenCollateral, liquidator, 'bnb', -(gasCost.add(repayAmount))],
+        [vTokenCollateral, liquidator, 'tokens', liquidatorDelta],
+        [vTokenCollateral, treasury, 'tokens', treasuryDelta],
+        [vBnb, borrower, 'borrows', -repayAmount],
+        [vTokenCollateral, borrower, 'tokens', -seizeTokens]
+      ]));
+    });
+  });
+
 });
