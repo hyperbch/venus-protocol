@@ -22,6 +22,7 @@ const announcedIncentive = bnbMantissa('1.10');
 const treasuryPercent = bnbMantissa('0.05');
 
 async function preApprove(vToken, from, spender, amount, opts = {}) {
+
   if (dfn(opts.faucet, true)) {
     expect(await send(vToken.underlying, 'harnessSetBalance', [from, amount], { from })).toSucceed();
   }
@@ -39,7 +40,10 @@ async function preLiquidate(liquidatorContract, vToken, liquidator, borrower, re
   await send(vToken.comptroller, 'setSeizeVerify', [true]);
   await send(vToken.comptroller, 'setFailCalculateSeizeTokens', [false]);
   await send(vToken.comptroller, 'setAnnouncedLiquidationIncentiveMantissa', [announcedIncentive]);
-  await send(vToken.underlying, 'harnessSetFailTransferFromAddress', [liquidator, false]);
+
+  if (vToken.underlying) {
+    await send(vToken.underlying, 'harnessSetFailTransferFromAddress', [liquidator, false]);
+  }
   await send(vToken.interestRateModel, 'setFailBorrowRate', [false]);
   await send(vTokenCollateral.interestRateModel, 'setFailBorrowRate', [false]);
   await send(vTokenCollateral.comptroller, 'setCalculatedSeizeTokens', [seizeTokens]);
@@ -47,7 +51,9 @@ async function preLiquidate(liquidatorContract, vToken, liquidator, borrower, re
   await setBalance(vTokenCollateral, borrower, seizeTokens);
   await pretendBorrow(vTokenCollateral, borrower, 0, 1, 0);
   await pretendBorrow(vToken, borrower, 1, 1, repayAmount);
-  await preApprove(vToken, liquidator, liquidatorContract._address, repayAmount);
+  if (vToken.underlying) {
+    await preApprove(vToken, liquidator, liquidatorContract._address, repayAmount);
+  }
 }
 
 async function liquidate(liquidatorContract, vToken, liquidator, borrower, repayAmount, vTokenCollateral) {
@@ -76,9 +82,9 @@ async function liquidatevBnb(liquidatorContract, vToken, liquidator, borrower, r
 
 function calculateSplitSeizedTokens(amount) {
   const treasuryDelta =
-      amount
-        .mul(bnbMantissa('1')).div(announcedIncentive) // / 1.1
-        .mul(treasuryPercent).div(bnbMantissa('1'));   // * 0.05
+    amount
+      .mul(bnbMantissa('1')).div(announcedIncentive) // / 1.1
+      .mul(treasuryPercent).div(bnbMantissa('1'));   // * 0.05
   const liquidatorDelta = amount.sub(treasuryDelta);
   return { treasuryDelta, liquidatorDelta };
 }
@@ -94,17 +100,20 @@ describe('Liquidator', function () {
     vBnb = await makeVToken({ kind: 'vbnb', comptroller: vToken.comptroller });
     liquidatorContract = await deploy(
       'Liquidator', [
-        root,
-        vBnb._address,
-        vToken.comptroller._address,
-        treasury,
-        treasuryPercent
-      ]
+      root,
+      vBnb._address,
+      vToken.comptroller._address,
+      treasury,
+      treasuryPercent
+    ]
     );
-    await preLiquidate(liquidatorContract, vToken, liquidator, borrower, repayAmount, vTokenCollateral);
   });
 
   describe('liquidateBorrow', () => {
+
+    beforeEach(async () => {
+      await preLiquidate(liquidatorContract, vToken, liquidator, borrower, repayAmount, vTokenCollateral);
+    });
 
     it('returns success from liquidateBorrow and transfers the correct amounts', async () => {
       const beforeBalances = await getBalances([vToken, vTokenCollateral], [treasury, liquidator, borrower]);
@@ -138,6 +147,10 @@ describe('Liquidator', function () {
   });
 
   describe('liquidate vBNB-Borrow', () => {
+
+    beforeEach(async () => {
+      await preLiquidate(liquidatorContract, vBnb, liquidator, borrower, repayAmount, vTokenCollateral);
+    });
 
     it('liquidate-vBNB and returns success from liquidateBorrow and transfers the correct amounts', async () => {
       const beforeBalances = await getBalances([vBnb, vTokenCollateral], [treasury, liquidator, borrower]);
