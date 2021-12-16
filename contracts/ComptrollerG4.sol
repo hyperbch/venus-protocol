@@ -9,6 +9,7 @@ import "./Unitroller.sol";
 import "./Governance/XVS.sol";
 import "./VAI/VAI.sol";
 
+
 /**
  * @title Venus's Comptroller Contract
  * @author Venus
@@ -1320,14 +1321,37 @@ contract ComptrollerG4 is ComptrollerV4Storage, ComptrollerInterfaceG2, Comptrol
      * @param suppliers Whether or not to claim XVS earned by supplying
      */
     function claimVenus(address[] memory holders, VToken[] memory vTokens, bool borrowers, bool suppliers) public {
+        claimVenus(holders, vTokens, borrowers, suppliers, false);
+    }
+
+    /**
+     * @notice Claim all xvs accrued by the holders
+     * @param holders The addresses to claim XVS for
+     * @param vTokens The list of markets to claim XVS in
+     * @param borrowers Whether or not to claim XVS earned by borrowing
+     * @param suppliers Whether or not to claim XVS earned by supplying
+     * @param collateral Whether or not to use XVS earned as collateral, only takes effect when the holder has a shortfall
+     */
+    function claimVenus(address[] memory holders, VToken[] memory vTokens, bool borrowers, bool suppliers, bool collateral) public {
         uint j;
         if(address(vaiController) != address(0)) {
             vaiController.updateVenusVAIMintIndex();
         }
+
+        // Save shortfalls of all holders
+        // if there is a positive shortfall, the XVS reward is accrued,
+        // but won't be granted to this holder
+        uint[] memory shortfalls = new uint[](holders.length);
+        for (j = 0; j < holders.length; j++) {
+            (, , uint shortfall) = getHypotheticalAccountLiquidityInternal(holders[j], VToken(0), 0, 0);
+            shortfalls[j] = shortfall;
+        }
+
         for (j = 0; j < holders.length; j++) {
             distributeVAIMinterVenus(holders[j]);
-            venusAccrued[holders[j]] = grantXVSInternal(holders[j], venusAccrued[holders[j]]);
+            venusAccrued[holders[j]] = grantXVSInternal(holders[j], venusAccrued[holders[j]], shortfalls[j], collateral);
         }
+
         for (uint i = 0; i < vTokens.length; i++) {
             VToken vToken = vTokens[i];
             require(markets[address(vToken)].isListed, "not listed market");
@@ -1336,17 +1360,18 @@ contract ComptrollerG4 is ComptrollerV4Storage, ComptrollerInterfaceG2, Comptrol
                 updateVenusBorrowIndex(address(vToken), borrowIndex);
                 for (j = 0; j < holders.length; j++) {
                     distributeBorrowerVenus(address(vToken), holders[j], borrowIndex);
-                    venusAccrued[holders[j]] = grantXVSInternal(holders[j], venusAccrued[holders[j]]);
+                    venusAccrued[holders[j]] = grantXVSInternal(holders[j], venusAccrued[holders[j]], shortfalls[j], collateral);
                 }
             }
             if (suppliers) {
                 updateVenusSupplyIndex(address(vToken));
                 for (j = 0; j < holders.length; j++) {
                     distributeSupplierVenus(address(vToken), holders[j]);
-                    venusAccrued[holders[j]] = grantXVSInternal(holders[j], venusAccrued[holders[j]]);
+                    venusAccrued[holders[j]] = grantXVSInternal(holders[j], venusAccrued[holders[j]], shortfalls[j], collateral);
                 }
             }
         }
+        
     }
 
     /**
@@ -1354,14 +1379,32 @@ contract ComptrollerG4 is ComptrollerV4Storage, ComptrollerInterfaceG2, Comptrol
      * @dev Note: If there is not enough XVS, we do not perform the transfer all.
      * @param user The address of the user to transfer XVS to
      * @param amount The amount of XVS to (possibly) transfer
+     * @param shortfall The shortfall of the user
+     * @param collateral Whether or not we will use user's venus reward as collateral to pay off the debt
      * @return The amount of XVS which was NOT transferred to the user
      */
-    function grantXVSInternal(address user, uint amount) internal returns (uint) {
+    function grantXVSInternal(address user, uint amount, uint shortfall, bool collateral) internal returns (uint) {
         XVS xvs = XVS(getXVSAddress());
         uint venusRemaining = xvs.balanceOf(address(this));
+        bool bankrupt = shortfall > 0;
         if (amount > 0 && amount <= venusRemaining) {
-            xvs.transfer(user, amount);
-            return 0;
+            // If user's not bankrupt, user can get the reward,
+            // otherwise, we will transfer the reward as collateral to mint vXVS for the user,
+            // so the liquidators will have chances to liquidate bankrupt accounts
+            if (!bankrupt) {
+                xvs.transfer(user, amount);
+                return 0;
+            } else if (collateral) {
+                xvs.transfer(user, amount);
+                // VToken will transfer user's xvs to itself
+                xvs.approve(getXVSVTokenAddress(), amount);
+                // if mintBehalf failed, don't grant any xvs
+                require(
+                    VBep20Interface(getXVSVTokenAddress()).mintBehalf(user, amount) == uint(Error.NO_ERROR),
+                    "mint behalf error during granting xvs"
+                );
+                return 0;
+            }
         }
         return amount;
     }
@@ -1430,6 +1473,14 @@ contract ComptrollerG4 is ComptrollerV4Storage, ComptrollerInterfaceG2, Comptrol
      */
     function getXVSAddress() public view returns (address) {
         return 0xcF6BB5389c92Bdda8a3747Ddb454cB7a64626C63;
+    }
+
+    /**
+     * @notice Return the address of the XVS token
+     * @return The address of XVS
+     */
+    function getXVSVTokenAddress() public view returns (address) {
+        return 0x151B1e2635A717bcDc836ECd6FbB62B674FE3E1D;
     }
 
     /*** VAI functions ***/

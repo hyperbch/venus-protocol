@@ -561,6 +561,12 @@ describe('Flywheel', () => {
         send(comptroller, 'claimVenus', [a1, [cNOT._address]])
       ).rejects.toRevert('revert not listed market');
     });
+
+    it('should stop bankrupt accounts from claiming', async () => {
+      
+    });
+
+    it('use xvs rewards of bank')
   });
 
   describe('claimVenus batch', () => {
