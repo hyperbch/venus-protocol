@@ -1,10 +1,10 @@
 const {
   bnbUnsigned,
-  bnbMantissa
+  bnbMantissa,
 } = require('../Utils/BSC');
-const { dfn } = require('../Utils/JS');
 const {
   makeVToken,
+  setBalance,
 } = require('../Utils/Venus');
 
 const repayAmount = bnbUnsigned(10e2);
@@ -45,15 +45,43 @@ describe('Liquidator', function () {
   describe('splitLiquidationIncentive', () => {
 
     it('split liquidationIncentive between Treasury and Liquidator with correct amounts', async () => {
-     
+      const splitResponse = await call(liquidatorContract, 'splitLiquidationIncentive', [seizeTokens]);
+      const expectedData = calculateSplitSeizedTokens(seizeTokens);
+      expect(splitResponse["ours"]).toEqual(expectedData.treasuryDelta.toString());
+      expect(splitResponse["theirs"]).toEqual(expectedData.liquidatorDelta.toString());
+    });
+  });
+
+  describe('distributeLiquidationIncentive', () => {
+    
+    it('distribute the liquidationIncentive between Treasury and Liquidator with correct amounts', async () => {
+      await setBalance(vTokenCollateral, liquidatorContract._address, seizeTokens.add(4e5));
+      const distributeLiquidationIncentiveResponse = 
+      await send(liquidatorContract, 'distributeLiquidationIncentive', [vTokenCollateral._address, seizeTokens]);
+      const expectedData = calculateSplitSeizedTokens(seizeTokens);
+      expect(distributeLiquidationIncentiveResponse).toHaveLog('DistributeLiquidationIncentive', {
+        seizeTokensForTreasury: expectedData.treasuryDelta.toString(),
+        seizeTokensForLiquidator: expectedData.liquidatorDelta.toString()
+      });
     });
 
   });
 
-  describe('distributeLiquidationIncentive', () => {
+  describe('Fails to distribute LiquidationIncentive', () => {
+    
+    it('Insufficient Collateral in LiquidatorContract - Error for transfer to Liquidator', async () => {
 
-    it('distribute the liquidationIncentive between Treasury and Liquidator with correct amounts', async () => {
-     
+      await expect(send(liquidatorContract, 'distributeLiquidationIncentive', [vTokenCollateral._address, seizeTokens]))
+      .rejects.toRevert("revert failed to transfer to liquidator");
+
+    });
+
+    it('Insufficient Collateral in LiquidatorContract - Error for transfer to Treasury', async () => {
+      const expectedData = calculateSplitSeizedTokens(seizeTokens);
+      await setBalance(vTokenCollateral, liquidatorContract._address, expectedData.liquidatorDelta);
+      await expect(send(liquidatorContract, 'distributeLiquidationIncentive', [vTokenCollateral._address, seizeTokens]))
+      .rejects.toRevert("revert failed to transfer to treasury");
+
     });
 
   });

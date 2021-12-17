@@ -22,6 +22,9 @@ contract LiquidatorHarness is Liquidator {
         )
     {}
 
+    event DistributeLiquidationIncentive(uint256 seizeTokensForTreasury, uint256 seizeTokensForLiquidator);
+
+
     /// @dev Splits the received vTokens between the liquidator and treasury.
     function distributeLiquidationIncentive(
         VToken vTokenCollateral,
@@ -36,6 +39,7 @@ contract LiquidatorHarness is Liquidator {
             vTokenCollateral.transfer(treasury, ours),
             "failed to transfer to treasury"
         );
+        emit DistributeLiquidationIncentive(ours, theirs);
         return (ours, theirs);
     }
 
