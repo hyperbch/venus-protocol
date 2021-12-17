@@ -43,6 +43,14 @@ contract ComptrollerHarness is Comptroller {
         return xvsAddress;
     }
 
+    function setXVSVTokenAddress(address xvsAddress_) public {
+        xvsAddress = xvsAddress_;
+    }
+
+    function getXVSVTokenAddress() public view returns (address) {
+        return xvsAddress;
+    }
+
     /**
      * @notice Set the amount of XVS distributed per block
      * @param venusRate_ The amount of XVS wei per block to distribute

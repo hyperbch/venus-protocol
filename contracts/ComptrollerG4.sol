@@ -379,7 +379,6 @@ contract ComptrollerG4 is ComptrollerV4Storage, ComptrollerInterfaceG2, Comptrol
                 return uint(err);
             }
         }
-
         if (oracle.getUnderlyingPrice(VToken(vToken)) == 0) {
             return uint(Error.PRICE_ERROR);
         }
@@ -1387,26 +1386,36 @@ contract ComptrollerG4 is ComptrollerV4Storage, ComptrollerInterfaceG2, Comptrol
         XVS xvs = XVS(getXVSAddress());
         uint venusRemaining = xvs.balanceOf(address(this));
         bool bankrupt = shortfall > 0;
-        if (amount > 0 && amount <= venusRemaining) {
-            // If user's not bankrupt, user can get the reward,
-            // otherwise, we will transfer the reward as collateral to mint vXVS for the user,
-            // so the liquidators will have chances to liquidate bankrupt accounts
-            if (!bankrupt) {
-                xvs.transfer(user, amount);
-                return 0;
-            } else if (collateral) {
-                xvs.transfer(user, amount);
-                // VToken will transfer user's xvs to itself
-                xvs.approve(getXVSVTokenAddress(), amount);
-                // if mintBehalf failed, don't grant any xvs
-                require(
-                    VBep20Interface(getXVSVTokenAddress()).mintBehalf(user, amount) == uint(Error.NO_ERROR),
-                    "mint behalf error during granting xvs"
-                );
-                return 0;
-            }
+        if (amount == 0 || amount > venusRemaining) {
+            return amount;
         }
-        return amount;
+        // If user's not bankrupt, user can get the reward,
+        // so the liquidators will have chances to liquidate bankrupt accounts
+        if (!bankrupt) {
+            xvs.transfer(user, amount);
+            return 0;
+        }
+
+        // If user's bankrupy and doesn't use pending xvs as collateral, don't grant anything
+        if (!collateral) {
+            return amount;
+        }
+        
+        require(collateral, "bankrupt accounts can only collateralize their pending xvs rewards");
+        
+        // Otherwise, we will transfer the pending xvs as collateral to vXVS token
+        // and mint vXVS for the user,
+        if (collateral) {
+            xvs.transfer(user, amount);
+            // VToken will transfer user's xvs to itself.
+            // If mintBehalf failed, don't grant any xvs
+            xvs.approve(getXVSVTokenAddress(), amount);
+            require(
+                VBep20Interface(getXVSVTokenAddress()).mintBehalf(user, amount) == uint(Error.NO_ERROR),
+                "mint behalf error during collateralize xvs"
+            );
+            return 0;
+        }
     }
 
     /*** Venus Distribution Admin ***/

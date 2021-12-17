@@ -562,11 +562,6 @@ describe('Flywheel', () => {
       ).rejects.toRevert('revert not listed market');
     });
 
-    it('should stop bankrupt accounts from claiming', async () => {
-      
-    });
-
-    it('use xvs rewards of bank')
   });
 
   describe('claimVenus batch', () => {
@@ -731,4 +726,34 @@ describe('Flywheel', () => {
       expect(borrowState.index).toEqual(idx.toString());
     });
   });
+
+  // describe('claimVenus bankrupt accounts', () => {
+  //   it('should stop bankrupt accounts from claiming', async () => {
+  //     const venusRemaining = bnbExp(1);
+  //     const accruedAmt = bnbUnsigned(0.0009e18);
+  //     await send(comptroller.xvs, 'transfer', [comptroller._address, venusRemaining], {from: root});
+  //     await send(comptroller, 'setVenusAccrued', [a1, accruedAmt]);
+  //     await send(comptroller, 'claimVenus', [a1, [vLOW._address]]);
+  //     expect(await venusAccrued(comptroller, a1)).toEqualNumber(0);
+  //     expect(await xvsBalance(comptroller, a1)).toEqualNumber(accruedAmt);
+
+  //     // prepare a vToken
+  //     const collateralFactor = 0.5, underlyingPrice = 1, user = accounts[1], amount = 1e6;
+  //     const vToken = await makeVToken({comptroller, supportMarket: true, collateralFactor, underlyingPrice});
+
+  //     let error, liquidity, shortfall;
+
+  //     // not in market yet, hypothetical borrow should have no effect
+  //     ({1: liquidity, 2: shortfall} = await call(vToken.comptroller, 'getHypotheticalAccountLiquidity', [a1, vToken._address, 0, amount]));
+  //     expect(liquidity).toEqualNumber(0);
+  //     expect(shortfall).toEqualNumber(0);
+
+
+  //   });
+
+  //   it('use xvs rewards of bank', async () => {
+
+  //   });
+
+  // })
 });
