@@ -1,15 +1,19 @@
 const {
   makeComptroller,
+  makeComptrollerG4,
   makeVToken,
   balanceOf,
   fastForward,
   pretendBorrow,
-  quickMint
+  quickMint,
+  enterMarkets,
+  makeToken,
 } = require('../Utils/Venus');
 const {
   bnbExp,
   bnbDouble,
-  bnbUnsigned
+  bnbUnsigned,
+  bnbMantissa,
 } = require('../Utils/BSC');
 
 const venusRate = bnbUnsigned(1e18);
@@ -32,37 +36,11 @@ describe('Flywheel', () => {
   beforeEach(async () => {
     let interestRateModelOpts = {borrowRate: 0.000001};
     [root, a1, a2, a3, ...accounts] = saddle.accounts;
-    comptroller = await makeComptroller();
+    comptroller = await makeComptroller({ kind: 'unitroller-g4' });
     vLOW = await makeVToken({comptroller, supportMarket: true, underlyingPrice: 1, interestRateModelOpts});
     vREP = await makeVToken({comptroller, supportMarket: true, underlyingPrice: 2, interestRateModelOpts});
     vZRX = await makeVToken({comptroller, supportMarket: true, underlyingPrice: 3, interestRateModelOpts});
     vEVIL = await makeVToken({comptroller, supportMarket: false, underlyingPrice: 3, interestRateModelOpts});
-  });
-
-  describe('_grantXVS()', () => {
-    beforeEach(async () => {
-      await send(comptroller.xvs, 'transfer', [comptroller._address, bnbUnsigned(50e18)], {from: root});
-    });
-
-    it('should award xvs if called by admin', async () => {
-      const tx = await send(comptroller, '_grantXVS', [a1, 100]);
-      expect(tx).toHaveLog('VenusGranted', {
-        recipient: a1,
-        amount: 100
-      });
-    });
-
-    it('should revert if not called by admin', async () => {
-      await expect(
-        send(comptroller, '_grantXVS', [a1, 100], {from: a1})
-      ).rejects.toRevert('revert only admin can grant xvs');
-    });
-
-    it('should revert if insufficient xvs', async () => {
-      await expect(
-        send(comptroller, '_grantXVS', [a1, bnbUnsigned(1e20)])
-      ).rejects.toRevert('revert insufficient xvs for grant');
-    });
   });
 
   describe('getVenusMarkets()', () => {
@@ -727,33 +705,106 @@ describe('Flywheel', () => {
     });
   });
 
-  // describe('claimVenus bankrupt accounts', () => {
-  //   it('should stop bankrupt accounts from claiming', async () => {
-  //     const venusRemaining = bnbExp(1);
-  //     const accruedAmt = bnbUnsigned(0.0009e18);
-  //     await send(comptroller.xvs, 'transfer', [comptroller._address, venusRemaining], {from: root});
-  //     await send(comptroller, 'setVenusAccrued', [a1, accruedAmt]);
-  //     await send(comptroller, 'claimVenus', [a1, [vLOW._address]]);
-  //     expect(await venusAccrued(comptroller, a1)).toEqualNumber(0);
-  //     expect(await xvsBalance(comptroller, a1)).toEqualNumber(accruedAmt);
+  describe('claimVenus bankrupt accounts', () => {
+    let vToken, liquidity, shortfall, comptroller;
+    const borrowed = 6666666;
+    const minted = 1e6;
+    const collateralFactor = 0.5, underlyingPrice = 1, amount = 1e6;
+    beforeEach(async () => {
+      // prepare a vToken
+      comptroller = await makeComptroller({ kind: 'unitroller-g4' });
+      vToken = await makeVToken({comptroller, supportMarket: true, collateralFactor, underlyingPrice});
 
-  //     // prepare a vToken
-  //     const collateralFactor = 0.5, underlyingPrice = 1, user = accounts[1], amount = 1e6;
-  //     const vToken = await makeVToken({comptroller, supportMarket: true, collateralFactor, underlyingPrice});
+      // enter market and make user borrow something
+      await enterMarkets([vToken], a1);
+      // mint vToken to get user some liquidity
+      await quickMint(vToken, a1, minted);
+      ({1: liquidity, 2: shortfall} = await call(
+        vToken.comptroller, 
+        'getAccountLiquidity', 
+        [a1]));
+      expect(liquidity).toEqualNumber(minted * collateralFactor);
+      expect(shortfall).toEqualNumber(0);
 
-  //     let error, liquidity, shortfall;
+      // borror some tokens and let user go bankrupt
+      await pretendBorrow(vToken, a1, 1, 1, borrowed);
+      ({1: liquidity, 2: shortfall} = await call(
+        vToken.comptroller, 
+        'getAccountLiquidity', 
+        [a1]));
+      expect(liquidity).toEqualNumber(0);
+      expect(shortfall).toEqualNumber((borrowed - minted) * collateralFactor);
+    });
 
-  //     // not in market yet, hypothetical borrow should have no effect
-  //     ({1: liquidity, 2: shortfall} = await call(vToken.comptroller, 'getHypotheticalAccountLiquidity', [a1, vToken._address, 0, amount]));
-  //     expect(liquidity).toEqualNumber(0);
-  //     expect(shortfall).toEqualNumber(0);
+    it('should stop bankrupt accounts from claiming', async () => {
+      // claiming venus will fail
+      const venusRemaining = bnbUnsigned(100e18);
+      const accruedAmt = bnbUnsigned(10e18);
+      await send(comptroller.xvs, 'transfer', [comptroller._address, venusRemaining], {from: root});
+      await send(comptroller, 'setVenusAccrued', [a1, accruedAmt]);
+      expect(await venusAccrued(comptroller, a1)).toEqualNumber(accruedAmt);
+      expect(await xvsBalance(comptroller, a1)).toEqualNumber(0);
 
+      await expect(
+        send(comptroller, 'claimVenus', [a1, [vToken._address]])
+      ).rejects.toRevert('revert bankrupt accounts can only collateralize their pending xvs rewards');
+    });
 
-  //   });
+    it('should use the pending xvs reward of bankrupt accounts as collateral and liquidator can liquidate them', async () => {
+      // set xvs and vXVS token
+      const xvs = await makeToken();
+      const vXVS = await makeVToken({comptroller, supportMarket: true, collateralFactor: 0.5, underlying: xvs, root, underlyingPrice: 1});
+      const venusRemaining = bnbUnsigned(100e18);
 
-  //   it('use xvs rewards of bank', async () => {
+      // this small amount of accrued xvs couldn't save the user out of bankrupt...
+      const smallAccruedAmt = bnbUnsigned(888);
+      // ...but this can
+      const bigAccruedAmt = bnbUnsigned(10e18);
 
-  //   });
+      await enterMarkets([vXVS], a1);
+      await send(comptroller, 'setXVSAddress', [xvs._address]);
+      await send(comptroller, 'setXVSVTokenAddress', [vXVS._address]);
+      await send(xvs, 'transfer', [comptroller._address, venusRemaining], {from: root});
+      await send(comptroller, 'setVenusAccrued', [a1, smallAccruedAmt]);
+      expect(await venusAccrued(comptroller, a1)).toEqualNumber(smallAccruedAmt);
+      
+      // mintBehalf is called
+      await send(comptroller, 'claimVenusAsCollateral', [a1]);
 
-  // })
+      // balance check
+      expect(bnbUnsigned(await call(xvs, 'balanceOf', [a1]))).toEqualNumber(0);
+      expect(bnbUnsigned(await call(vXVS, 'balanceOf', [a1]))).toEqualNumber(smallAccruedAmt);
+      expect(bnbUnsigned(await call(xvs, 'balanceOf', [comptroller._address]))).toEqualNumber(venusRemaining.sub(smallAccruedAmt));
+      expect(await venusAccrued(comptroller, a1)).toEqualNumber(0);
+
+      // liquidity check, a part of user's debt is paid off but the user's
+      // still bankrupt 
+      ({1: liquidity, 2: shortfall} = await call(
+        comptroller, 
+        'getAccountLiquidity', 
+        [a1]));
+      expect(liquidity).toEqualNumber(0);
+      const shortfallBefore = bnbUnsigned(borrowed - minted); 
+      const shortfallAfter = shortfallBefore.sub(smallAccruedAmt) * collateralFactor;
+      expect(shortfall).toEqualNumber(shortfallAfter)
+
+      // give the user big amount of reward so the user can pay off the debt
+      await send(comptroller, 'setVenusAccrued', [a1, bigAccruedAmt]);
+      expect(await venusAccrued(comptroller, a1)).toEqualNumber(bigAccruedAmt);
+      
+      await send(comptroller, 'claimVenusAsCollateral', [a1]);
+      ({1: liquidity, 2: shortfall} = await call(
+        comptroller, 
+        'getAccountLiquidity', 
+        [a1]));
+      expect(liquidity).toEqualNumber(bnbUnsigned(bigAccruedAmt * collateralFactor).sub(shortfallAfter));
+      expect(shortfall).toEqualNumber(0)
+
+      // balance check
+      expect(bnbUnsigned(await call(xvs, 'balanceOf', [a1]))).toEqualNumber(0);
+      expect(bnbUnsigned(await call(vXVS, 'balanceOf', [a1]))).toEqualNumber(smallAccruedAmt.add(bigAccruedAmt));
+      expect(bnbUnsigned(await call(xvs, 'balanceOf', [comptroller._address]))).toEqualNumber(venusRemaining.sub(smallAccruedAmt).sub(bigAccruedAmt));
+    });
+
+  })
 });

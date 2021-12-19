@@ -1370,7 +1370,16 @@ contract ComptrollerG4 is ComptrollerV4Storage, ComptrollerInterfaceG2, Comptrol
                 }
             }
         }
-        
+    }
+
+    /**
+     * @notice Claim all the xvs accrued by holder in all markets, a shorthand for `claimVenus` with collateral set to `true`
+     * @param holder The address to claim XVS for
+     */
+    function claimVenusAsCollateral(address holder) public {
+        address[] memory holders = new address[](1);
+        holders[0] = holder;
+        claimVenus(holders, allMarkets, true, true, true);
     }
 
     /**
@@ -1386,9 +1395,11 @@ contract ComptrollerG4 is ComptrollerV4Storage, ComptrollerInterfaceG2, Comptrol
         XVS xvs = XVS(getXVSAddress());
         uint venusRemaining = xvs.balanceOf(address(this));
         bool bankrupt = shortfall > 0;
+
         if (amount == 0 || amount > venusRemaining) {
             return amount;
         }
+
         // If user's not bankrupt, user can get the reward,
         // so the liquidators will have chances to liquidate bankrupt accounts
         if (!bankrupt) {
@@ -1396,26 +1407,21 @@ contract ComptrollerG4 is ComptrollerV4Storage, ComptrollerInterfaceG2, Comptrol
             return 0;
         }
 
-        // If user's bankrupy and doesn't use pending xvs as collateral, don't grant anything
-        if (!collateral) {
-            return amount;
-        }
-        
+        // If user's bankrupt and doesn't use pending xvs as collateral, don't grant
+        // anything, otherwise, we will transfer the pending xvs as collateral to 
+        // vXVS token and mint vXVS for the user.
+        // 
+        // If mintBehalf failed, don't grant any xvs
         require(collateral, "bankrupt accounts can only collateralize their pending xvs rewards");
         
-        // Otherwise, we will transfer the pending xvs as collateral to vXVS token
-        // and mint vXVS for the user,
-        if (collateral) {
-            xvs.transfer(user, amount);
-            // VToken will transfer user's xvs to itself.
-            // If mintBehalf failed, don't grant any xvs
-            xvs.approve(getXVSVTokenAddress(), amount);
-            require(
-                VBep20Interface(getXVSVTokenAddress()).mintBehalf(user, amount) == uint(Error.NO_ERROR),
-                "mint behalf error during collateralize xvs"
-            );
-            return 0;
-        }
+        xvs.approve(getXVSVTokenAddress(), amount);
+        require(
+            VBep20Interface(getXVSVTokenAddress()).mintBehalf(user, amount) == uint(Error.NO_ERROR),
+            "mint behalf error during collateralize xvs"
+        );
+
+        // set venusAccrue[user] to 0
+        return 0;
     }
 
     /*** Venus Distribution Admin ***/

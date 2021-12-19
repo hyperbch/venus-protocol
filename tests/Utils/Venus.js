@@ -121,6 +121,47 @@ async function makeComptroller(opts = {}) {
 
     return Object.assign(unitroller, { priceOracle, xvs, vai, vaiunitroller });
   }
+
+  if (kind == 'unitroller-g4') {
+    const unitroller = opts.unitroller || await deploy('Unitroller');
+    const comptroller = await deploy('ComptrollerHarnessG4');
+    const priceOracle = opts.priceOracle || await makePriceOracle(opts.priceOracleOpts);
+    const closeFactor = bnbMantissa(dfn(opts.closeFactor, .051));
+    const liquidationIncentive = bnbMantissa(1);
+    const xvs = opts.xvs || await deploy('XVS', [opts.venusOwner || root]);
+    const vai = opts.vai || await makeVAI();
+    const venusRate = bnbUnsigned(dfn(opts.venusRate, 1e18));
+    const venusVAIRate = bnbUnsigned(dfn(opts.venusVAIRate, 5e17));
+    const venusMarkets = opts.venusMarkets || [];
+
+    await send(unitroller, '_setPendingImplementation', [comptroller._address]);
+    await send(comptroller, '_become', [unitroller._address]);
+    mergeInterface(unitroller, comptroller);
+
+    const vaiunitroller = await deploy('VAIUnitroller');
+    const vaicontroller = await deploy('VAIControllerHarness');
+    
+    await send(vaiunitroller, '_setPendingImplementation', [vaicontroller._address]);
+    await send(vaicontroller, '_become', [vaiunitroller._address]);
+    mergeInterface(vaiunitroller, vaicontroller);
+
+    await send(unitroller, '_setVAIController', [vaiunitroller._address]);
+    await send(vaiunitroller, '_setComptroller', [unitroller._address]);
+    await send(unitroller, '_setLiquidationIncentive', [liquidationIncentive]);
+    await send(unitroller, '_setCloseFactor', [closeFactor]);
+    await send(unitroller, '_setPriceOracle', [priceOracle._address]);
+    await send(unitroller, 'setXVSAddress', [xvs._address]); // harness only
+    await send(vaiunitroller, 'setVAIAddress', [vai._address]); // harness only
+    await send(unitroller, 'harnessSetVenusRate', [venusRate]);
+    await send(unitroller, '_setVenusVAIRate', [venusVAIRate]);
+    await send(vaiunitroller, '_initializeVenusVAIState', [0]);
+    await send(vaiunitroller, 'initialize');
+    await send(vai, 'rely', [vaiunitroller._address]);
+
+    await send(unitroller, '_setTreasuryData', [treasuryGuardian, treasuryAddress, 1e14]);
+
+    return Object.assign(unitroller, { priceOracle, xvs, vai, vaiunitroller });
+  }
 }
 
 async function makeVToken(opts = {}) {
