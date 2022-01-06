@@ -13,7 +13,10 @@
     "profile": "yarn test tests/gasProfiler.js",
     "test": "./script/test",
     "test:prepare": "NO_RUN=true ./script/test",
-    "checksize": "npx run ./script/saddle/comptrollerSize.js"
+    "checksize": "npx run ./script/saddle/comptrollerSize.js",
+    "compile:hardhat": "hardhat compile",
+    "test:hardhat": "hardhat test",
+    "clean:hardhat": "hardhat clean"
   },
   "repository": "git@github.com:VenusProtocol/venus-protocol.git",
   "author": "Venus",
@@ -31,7 +34,11 @@
     "jest-junit": "^11.1.0",
     "solidity-coverage": "^0.7.16",
     "solium": "^1.2.5",
-    "solparse": "^2.2.8"
+    "solparse": "^2.2.8",
+    "ts-generator": "^0.1.1",
+    "ts-node": "^9.1.1",
+    "typechain": "^4.0.3",
+    "typescript": "^4.2.3"
   },
   "dependencies": {
     "@nomiclabs/hardhat-ethers": "^2.0.2",
