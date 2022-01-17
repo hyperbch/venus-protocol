@@ -14,7 +14,7 @@ import "./ComptrollerLensInterface.sol";
  * @title Venus's Comptroller Contract
  * @author Venus
  */
-contract Comptroller is ComptrollerV7Storage, ComptrollerInterfaceG2, ComptrollerErrorReporter, ExponentialNoError {
+contract Comptroller is ComptrollerV6Storage, ComptrollerInterfaceG2, ComptrollerErrorReporter, ExponentialNoError {
     /// @notice Emitted when an admin supports a market
     event MarketListed(VToken vToken);
 
@@ -92,6 +92,9 @@ contract Comptroller is ComptrollerV7Storage, ComptrollerInterfaceG2, Comptrolle
 
     /// @notice Emitted when treasury percent is changed
     event NewTreasuryPercent(uint oldTreasuryPercent, uint newTreasuryPercent);
+
+    // @notice Emitted when liquidator adress is changed
+    event NewLiquidatorContract(address oldLiquidatorContract, address newLiquidatorContract);
 
     /// @notice Emitted when Venus is granted by admin
     event VenusGranted(address recipient, uint amount);
@@ -511,6 +514,10 @@ contract Comptroller is ComptrollerV7Storage, ComptrollerInterfaceG2, Comptrolle
         // Shh - currently unused
         liquidator;
 
+        if (liquidator != liquidatorContract) {
+            return uint(Error.UNAUTHORIZED);
+        }
+
         if (!(markets[vTokenBorrowed].isListed || address(vTokenBorrowed) == address(vaiController)) || !markets[vTokenCollateral].isListed) {
             return uint(Error.MARKET_NOT_LISTED);
         }
@@ -878,6 +885,12 @@ contract Comptroller is ComptrollerV7Storage, ComptrollerInterfaceG2, Comptrolle
         return uint(Error.NO_ERROR);
     }
 
+    function _setLiquidatorContract(address newLiquidatorContract_) external onlyAdmin {
+        address oldLiquidatorContract = liquidatorContract;
+        liquidatorContract = newLiquidatorContract_;
+        emit NewLiquidatorContract(oldLiquidatorContract, newLiquidatorContract_);
+    }
+
     /**
       * @notice Add the market to the markets mapping and set it as listed
       * @dev Admin function to set isListed and add support for the market
@@ -936,7 +949,7 @@ contract Comptroller is ComptrollerV7Storage, ComptrollerInterfaceG2, Comptrolle
 
     /**
       * @notice Set the given borrow caps for the given vToken markets. Borrowing that brings total borrows to or above borrow cap will revert.
-      * @dev Admin or borrowCapGuardian function to set the borrow caps. A borrow cap of 0 corresponds to unlimited borrowing.
+      * @dev Admin or borrowCapGuardian function to set the borrow caps. A ` cap of 0 corresponds to unlimited borrowing.
       * @param vTokens The addresses of the markets (tokens) to change the borrow caps for
       * @param newBorrowCaps The new borrow cap values in underlying to be set. A value of 0 corresponds to unlimited borrowing.
       */
