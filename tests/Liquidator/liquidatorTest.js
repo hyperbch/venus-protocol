@@ -159,6 +159,7 @@ describe('Liquidator', function () {
       const afterBalances = await getBalances([vBnb, vTokenCollateral], [treasury, liquidator, borrower]);
 
       const { treasuryDelta, liquidatorDelta } = calculateSplitSeizedTokens(seizeTokens);
+      console.log('liquidatorDelta', liquidatorDelta);
       expect(result).toHaveLog('LiquidateBorrowedTokens', {
         liquidator,
         borrower,

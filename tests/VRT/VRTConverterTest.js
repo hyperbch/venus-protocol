@@ -230,8 +230,8 @@ describe('VRTConverterProxy', () => {
         reedeemer: alice,
         vrtAddress: vrtTokenAddress,
         xvsAddress: xvsTokenAddress,
-        vrtAmount: vrtTransferAmount,
-        xvsAmount: xvsVestedAmount.toFixed(0)
+        vrtAmount: vrtTransferAmount.toFixed(),
+        xvsAmount: xvsVestedAmount.toFixed()
       });
 
     });
@@ -288,7 +288,7 @@ describe('VRTConverterProxy', () => {
       expect(withdrawXVSTxn).toHaveLog('TokenWithdraw', {
         token: xvsTokenAddress,
         to: root,
-        amount: xvsTokenMintAmount
+        amount: xvsTokenMintAmount.toFixed()
       });
     });
 
