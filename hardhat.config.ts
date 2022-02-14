@@ -4,28 +4,15 @@
 import { HardhatUserConfig } from "hardhat/types";
 import '@openzeppelin/hardhat-upgrades';
 
+import "@nomiclabs/hardhat-truffle5";
 import "@nomiclabs/hardhat-waffle";
 import "@nomiclabs/hardhat-etherscan";
 import "hardhat-typechain";
-import fs from "fs";
-import path from "path";
-const USER_HOME = process.env.HOME || process.env.USERPROFILE
-let data = {
-  "PrivateKey": "a0974f086e7dfbe3702f781a06e3a90de50ddd5ac5839cb673acd74f8882df87",
-  "InfuraApiKey": "api",
-  "EtherscanApiKey": "api",
-};
 
-let filePath = path.join(USER_HOME+'/.hardhat.data.json');
-if (fs.existsSync(filePath)) {
-  let rawdata = fs.readFileSync(filePath);
-  data = JSON.parse(rawdata.toString());
-}
-filePath = path.join(__dirname, `.hardhat.data.json`);
-if (fs.existsSync(filePath)) {
-  let rawdata = fs.readFileSync(filePath);
-  data = JSON.parse(rawdata.toString());
-}
+import { ethers } from 'ethers';
+
+const BSCSCAN_API_KEY = process.env.BSCSCAN_API_KEY || 'scanapikey';
+const DEPLOYER_PRIVATE_KEY = process.env.DEPLOYER_PRIVATE_KEY || '5d5213613985d1d0ba01d9b5376269d0caca14f1da0f643ae2d124e5d5d4254f';
 
 const config: HardhatUserConfig = {
   defaultNetwork: "hardhat",
@@ -43,33 +30,32 @@ const config: HardhatUserConfig = {
     ],
   },
   networks: {
-    hardhat: {
-      chainId: 97,
-      allowUnlimitedContractSize: true
-    },
-    ropsten: {
-      url: `https://ropsten.infura.io/v3/${data.InfuraApiKey}`,
-      accounts: [data.PrivateKey]
-    },
     bsctestnet: {
-      url: `https://data-seed-prebsc-1-s1.binance.org:8545/`,
-      accounts: [data.PrivateKey]
+      url: process.env.BSC_TESTNET_NODE || 'https://data-seed-prebsc-1-s1.binance.org:8545',
+      chainId: 97,
+      accounts: [`0x${DEPLOYER_PRIVATE_KEY}`],
+      gasPrice: ethers.utils.parseUnits("50", "gwei").toNumber(),
+      gasMultiplier: 10,
+      timeout: 12000000,
     },
+    hardhat: {
+      chainId: 56,
+      forking: {
+        url: process.env.BSC_ARCHIVE_NODE || '',
+      }
+    },
+    // currently not used, we are still using saddle to deploy contracts
     bscmainnet: {
       url: `https://bsc-dataseed.binance.org/`,
-      accounts: [data.PrivateKey]
+      accounts: [`0x${DEPLOYER_PRIVATE_KEY}`]
     },
-    hecotestnet: {
-      url: `https://http-testnet.hecochain.com`,
-      accounts: [data.PrivateKey]
-    }
   },
   etherscan: {
-    apiKey: data.EtherscanApiKey,
+    apiKey: BSCSCAN_API_KEY,
   },
   paths: {
     sources: "./contracts",
-    tests: "./test",
+    tests: "./tests/hardhat",
     cache: "./cache",
     artifacts: "./artifacts"
   },

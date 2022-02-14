@@ -1,15 +1,15 @@
 import { Wallet, BigNumber } from 'ethers'
 import { ethers, network, waffle } from 'hardhat'
-import { ComptrollerHarness } from '../typechain/ComptrollerHarness'
-import { SimplePriceOracle } from '../typechain/SimplePriceOracle'
-import { XVS } from '../typechain/XVS'
-import { VAIScenario } from '../typechain/VAIScenario'
-import { VAIControllerHarness } from '../typechain/VAIControllerHarness'
-import { BEP20Harness } from '../typechain/BEP20Harness'
-import { VBep20Harness } from '../typechain/VBep20Harness'
+import { ComptrollerHarness } from '../../typechain/ComptrollerHarness'
+import { SimplePriceOracle } from '../../typechain/SimplePriceOracle'
+import { XVS } from '../../typechain/XVS'
+import { VAIScenario } from '../../typechain/VAIScenario'
+import { VAIControllerHarness } from '../../typechain/VAIControllerHarness'
+import { BEP20Harness } from '../../typechain/BEP20Harness'
+import { VBep20Harness } from '../../typechain/VBep20Harness'
 import { expect } from './shared/expect'
 import { comptrollerFixture, bigNumber18, bigNumber17, bigNumber16 } from './shared/fixtures'
-import { ComptrollerLensInterface } from '../typechain/ComptrollerLensInterface'
+import { ComptrollerLensInterface } from '../../typechain/ComptrollerLensInterface'
 
 const createFixtureLoader = waffle.createFixtureLoader
 
@@ -33,6 +33,10 @@ describe('Comptroller', async () => {
 
     before('create fixture loader', async () => {
         [wallet, user1, user2, treasuryGuardian, treasuryAddress] = await (ethers as any).getSigners()
+        await network.provider.send("hardhat_setBalance", [
+            wallet.address,
+            "0x10000000000000000000000",
+        ]);
         loadFixTure = createFixtureLoader([wallet, treasuryGuardian, treasuryAddress])
     })
 

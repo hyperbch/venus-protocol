@@ -1,16 +1,16 @@
-import { BigNumber, Wallet } from 'ethers'
+import { Wallet, BigNumber } from 'ethers'
 import { ethers } from 'hardhat'
-import { Unitroller } from '../../typechain/Unitroller'
-import { ComptrollerHarness } from '../../typechain/ComptrollerHarness'
-import { ComptrollerLensInterface } from '../../typechain/ComptrollerLensInterface';
-import { SimplePriceOracle } from '../../typechain/SimplePriceOracle'
-import { XVS } from '../../typechain/XVS'
-import { VAIScenario } from '../../typechain/VAIScenario'
-import { VAIUnitroller } from '../../typechain/VAIUnitroller'
-import { VAIControllerHarness } from '../../typechain/VAIControllerHarness'
-import { BEP20Harness } from '../../typechain/BEP20Harness'
-import { InterestRateModelHarness } from '../../typechain/InterestRateModelHarness'
-import { VBep20Harness } from '../../typechain/VBep20Harness'
+import { Unitroller } from '../../../typechain/Unitroller'
+import { ComptrollerHarness } from '../../../typechain/ComptrollerHarness'
+import { ComptrollerLensInterface } from '../../../typechain/ComptrollerLensInterface';
+import { SimplePriceOracle } from '../../../typechain/SimplePriceOracle'
+import { XVS } from '../../../typechain/XVS'
+import { VAIScenario } from '../../../typechain/VAIScenario'
+import { VAIUnitroller } from '../../../typechain/VAIUnitroller'
+import { VAIControllerHarness } from '../../../typechain/VAIControllerHarness'
+import { BEP20Harness } from '../../../typechain/BEP20Harness'
+import { InterestRateModelHarness } from '../../../typechain/InterestRateModelHarness'
+import { VBep20Harness } from '../../../typechain/VBep20Harness'
 import { Fixture, deployMockContract, MockContract } from 'ethereum-waffle'
 
 export const bigNumber18 = BigNumber.from("1000000000000000000")  // 1e18
