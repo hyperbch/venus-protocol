@@ -35,7 +35,7 @@ describe('Comptroller', async () => {
         [wallet, user1, user2, treasuryGuardian, treasuryAddress] = await (ethers as any).getSigners()
         await network.provider.send("hardhat_setBalance", [
             wallet.address,
-            "0x10000000000000000000000",
+            "0x1000000000000000000000000000",
         ]);
         loadFixTure = createFixtureLoader([wallet, treasuryGuardian, treasuryAddress])
     })

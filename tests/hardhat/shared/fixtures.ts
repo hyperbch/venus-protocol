@@ -56,7 +56,6 @@ export const comptrollerFixture: Fixture<ComptrollerFixture> = async function ([
     // const unitroller = (await unitrollerFactory.deploy()) as Unitroller
     const comptrollerLensFactory = await ethers.getContractFactory('ComptrollerLens');
     const comptrollerLens = (await comptrollerLensFactory.deploy()) as ComptrollerLensInterface;
-
     const { usdt } = await testTokensFixture();
     const comptrollerFactory = await ethers.getContractFactory('ComptrollerHarness');
     const comptroller = (await comptrollerFactory.deploy()) as ComptrollerHarness

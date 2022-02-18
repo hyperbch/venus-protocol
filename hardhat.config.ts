@@ -7,7 +7,7 @@ import '@openzeppelin/hardhat-upgrades';
 import "@nomiclabs/hardhat-truffle5";
 import "@nomiclabs/hardhat-waffle";
 import "@nomiclabs/hardhat-etherscan";
-import "hardhat-typechain";
+// import "hardhat-typechain";
 
 import { ethers } from 'ethers';
 
@@ -42,7 +42,8 @@ const config: HardhatUserConfig = {
       chainId: 56,
       forking: {
         url: process.env.BSC_ARCHIVE_NODE || '',
-      }
+      },
+      allowUnlimitedContractSize: true
     },
     // currently not used, we are still using saddle to deploy contracts
     bscmainnet: {
