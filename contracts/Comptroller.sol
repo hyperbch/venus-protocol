@@ -1121,6 +1121,8 @@ contract Comptroller is ComptrollerV7Storage, ComptrollerInterfaceG2, Comptrolle
      * @dev Set ComptrollerLens contract address
      */
     function _setComptrollerLens(ComptrollerLensInterface comptrollerLens_) external {
+        ensureAdmin();
+
         require(address(comptrollerLens_) != address(0), "can't be zero address");
         comptrollerLens = comptrollerLens_;
     }

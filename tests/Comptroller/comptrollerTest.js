@@ -96,6 +96,21 @@ describe('Comptroller', () => {
     });
   });
 
+  describe('_setComptrollerLens', () => {
+    let comptroller;
+  
+    beforeEach(async () => {
+      comptroller = await makeComptroller();
+    });
+
+    it("fails if not called by admin", async () => {
+      const comptrollerLens = await deploy('ComptrollerLens');
+      await expect(
+        send(comptroller, '_setComptrollerLens', [comptrollerLens._address], {from: accounts[0]})
+      ).rejects.toRevert('revert only admin can');
+    });
+  });
+
   describe('_setCloseFactor', () => {
     it("fails if not called by admin", async () => {
       const vToken = await makeVToken();
