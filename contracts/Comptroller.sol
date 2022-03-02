@@ -96,14 +96,17 @@ contract Comptroller is ComptrollerV7Storage, ComptrollerInterfaceG2, Comptrolle
     /// @notice Emitted when Venus is granted by admin
     event VenusGranted(address recipient, uint amount);
 
-    /// @notice Emiitted whe VAI base rate is changed
+    /// @notice Emitted whe VAI base rate is changed
     event NewVAIBaseRate(uint oldBaseRateMantissa, uint newBaseRateMantissa);
 
-    /// @notice Emiitted whe VAI float rate is changed
+    /// @notice Emitted whe VAI float rate is changed
     event NewVAIFloatRate(uint oldFloatRateMantissa, uint newFlatRateMantissa);
 
-    /// @notice Emiitted whe VAI receiver address is changed
+    /// @notice Emitted whe VAI receiver address is changed
     event NewVAIReceiver(address oldReceiver, address newReceiver);
+
+    /// @notice Emitted whe ComptrollerLens address is changed
+    event NewComptrollerLens(address oldComptrollerLens, address newComptrollerLens);
 
     /// @notice The initial Venus index for a market
     uint224 public constant venusInitialIndex = 1e36;
@@ -1123,9 +1126,10 @@ contract Comptroller is ComptrollerV7Storage, ComptrollerInterfaceG2, Comptrolle
      */
     function _setComptrollerLens(ComptrollerLensInterface comptrollerLens_) external {
         ensureAdmin();
-
         require(address(comptrollerLens_) != address(0), "can't be zero address");
+        address oldComptrollerLens = address(comptrollerLens);
         comptrollerLens = comptrollerLens_;
+        emit NewComptrollerLens(oldComptrollerLens, address(comptrollerLens));
     }
 
     /**

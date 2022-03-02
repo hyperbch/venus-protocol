@@ -109,6 +109,16 @@ describe('Comptroller', () => {
         send(comptroller, '_setComptrollerLens', [comptrollerLens._address], {from: accounts[0]})
       ).rejects.toRevert('revert only admin can');
     });
+
+    it("should fire an event", async () => {
+      const newComptrollerLens = await deploy('ComptrollerLens');
+      const oldComptrollerLensAddress = await call(comptroller, 'comptrollerLens', []);
+      const result = await send(comptroller, '_setComptrollerLens', [newComptrollerLens._address], {from: root})
+      expect(result).toHaveLog('NewComptrollerLens', {
+        oldComptrollerLens: oldComptrollerLensAddress,
+        newComptrollerLens: newComptrollerLens._address,
+      });
+    });
   });
 
   describe('_setCloseFactor', () => {
