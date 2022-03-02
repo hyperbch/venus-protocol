@@ -52,8 +52,8 @@ contract ComptrollerLens is ComptrollerErrorReporter, ExponentialNoError {
         
         if(totalRepayAmount >= repayAmount) {
             uint rate = getVAIRepayRate(comptroller);
-            repayAmount = mul_(repayAmount, 1e18, "VAI_REPAY_AMOUNT_CALCULATION_FAILED");
-            amount = div_(repayAmount, rate, "VAI_REPAY_AMOUNT_CALCULATION_FAILED");
+            uint repayAmountMantissa = mul_(repayAmount, 1e18, "VAI_REPAY_AMOUNT_CALCULATION_FAILED");
+            amount = div_(repayAmountMantissa, rate, "VAI_REPAY_AMOUNT_CALCULATION_FAILED");
         } else {
             amount = Comptroller(comptroller).mintedVAIs(account);
         }
